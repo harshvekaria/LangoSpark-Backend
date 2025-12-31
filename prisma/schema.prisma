@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// **User & Profile Management**
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  fullName      String
+  password      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  profile       Profile?
+  learningPlans LearningPlan[]
+  progress      Progress[]
+  pronunciationFeedback PronunciationFeedback[]
+  conversationPractices ConversationPractice[]
+  conversationExchanges ConversationExchange[]
+  leaderboardEntries    LeaderboardEntry[]
+
+  // Language learning related fields
+  nativeLanguage    String?
+  learningProgress  LearningProgress[]
+  userLanguages     UserLanguage[]
+}
+
+model Profile {
+  id         String  @id @default(uuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id])
+  name       String
+  age        Int?
+  nativeLang String
+  learningLangs LearningLanguage[]
+}
+
+model LearningLanguage {
+  id        String @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  language  String
+  level     String  /// e.g., Beginner, Intermediate, Advanced
+}
+
+/// **Learning Plan & Progress Tracking**
+model LearningPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  language  String
+  goal      String   /// E.g., "Conversational Fluency"
+  createdAt DateTime @default(now())
+}
+
+model Progress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  score     Int?
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+/// **Lesson & Quizzes**
+model Lesson {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  languageId  String
+  level       Level
+  content     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  language   Language           @relation(fields: [languageId], references: [id])
+  progress   LearningProgress[]
+
+  Progress Progress[]
+
+  Quiz Quiz[]
+}
+
+model Quiz {
+  id        String   @id @default(uuid())
+  lessonId  String   @unique
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  questions Json     /// Array of multiple-choice questions
+  leaderboardEntries LeaderboardEntry[]
+}
+
+/// **Speech Recognition & AI Feedback**
+model PronunciationFeedback {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sentence    String
+  accuracy    Float    /// 0.0 - 1.0 scoring
+  feedback    String   /// AI-generated feedback
+  createdAt   DateTime @default(now())
+}
+
+model ConversationPractice {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  transcript Json     /// Store conversation history as JSON
+  createdAt DateTime @default(now())
+}
+
+model ConversationExchange {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  languageId  String
+  language    Language @relation(fields: [languageId], references: [id])
+  userMessage String   /// The user's message
+  aiResponse  String   /// The AI's response
+  createdAt   DateTime @default(now())
+}
+
+model Language {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique  // e.g., "en", "es", "fr"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userLanguages UserLanguage[]
+  lessons      Lesson[]
+  conversationExchanges ConversationExchange[]
+}
+
+model UserLanguage {
+  id         String   @id @default(uuid())
+  userId     String
+  languageId String
+  level      Level    @default(BEGINNER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id])
+  language Language @relation(fields: [languageId], references: [id])
+
+  @@unique([userId, languageId])
+}
+
+model LearningProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  lessonId  String
+  score     Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  lesson  Lesson  @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+}
+
+/// **Leaderboard**
+model LeaderboardEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  quizId    String
+  quiz      Quiz     @relation(fields: [quizId], references: [id])
+  score     Int      // User's score for the quiz
+  timeTaken Int?     // Time taken to complete the quiz in seconds (optional)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, quizId]) // Each user can have only one entry per quiz
+  @@index([score]) // Index for faster leaderboard sorting
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
