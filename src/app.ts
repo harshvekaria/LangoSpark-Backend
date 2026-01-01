@@ -12,8 +12,10 @@ import progressRoutes from './routes/progress.routes';
 import aiLessonsRoutes from './routes/ai-lessons.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 
+// Initialize express app
 const app = express();
 
+// Initialize Prisma client
 export const prisma = new PrismaClient();
 
 app.use(helmet());
@@ -72,6 +74,7 @@ app.get('/health', (_req: Request, res: Response) => {
     });
 });
 
+// 404 handler
 app.use((_req: Request, res: Response) => {
     res.status(404).json({
         success: false,
@@ -79,6 +82,7 @@ app.use((_req: Request, res: Response) => {
     });
 });
 
+// Error handling middleware
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     console.error(err.stack);
 
